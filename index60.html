@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>真言宗住嚴院 - 六十心占卜</title>
+    
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 載入 React, ReactDOM, Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Serif TC', serif;
+            background-color: #1c1917;
+            /* 修正手機瀏覽器高度問題 */
+            min-height: 100vh;
+            min-height: 100dvh; 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* 防止整體頁面捲動，只讓卡片內部捲動 */
+        }
+
+        .writing-vertical-rl {
+            writing-mode: vertical-rl;
+        }
+
+        /* 3D 翻書與動畫設定 */
+        .perspective-1000 { perspective: 1000px; }
+        .book-container { transform-style: preserve-3d; transition: transform 0.8s; }
+        
+        @keyframes openBook {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(-10deg) translateX(-10px) scale(0.9); opacity: 0; }
+        }
+
+        @keyframes shake {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(5deg); }
+            75% { transform: rotate(-5deg); }
+            100% { transform: rotate(0deg); }
+        }
+        .animate-shake-hard { animation: shake 0.5s infinite; }
+
+        @keyframes dropStick {
+            0% { top: -50px; opacity: 0; }
+            100% { top: -10px; opacity: 1; }
+        }
+        .animate-drop-stick { animation: dropStick 0.5s ease-out forwards; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-stone-900 text-stone-200">
+    <div id="root" class="flex-1 flex flex-col h-full w-full"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { createRoot } = ReactDOM;
+
+        // Icon 組件
+        const Icon = ({ name, size = 24, className }) => {
+            if (name === 'RefreshCcw') return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>;
+            if (name === 'Sparkles') return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 5h4"/><path d="M3 9h4"/></svg>;
+            if (name === 'Scroll') return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M8 21h12a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/></svg>;
+            if (name === 'BookOpen') return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>;
+            if (name === 'Zap') return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
+            if (name === 'Play') return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="5 3 19 12 5 21 5 3"/></svg>;
+            if (name === 'X') return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
+            if (name === 'Hand') return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>;
+            return null;
+        };
+
+        const SIXTY_MINDS = [
+            { id: 1, name: '貪心', category: '凡夫', classic: '謂隨順染法。', modern: '對外在事物過度執著，心被慾望染色，無法保持清澈。', example: '看到新款手機上市，雖然舊的還能用，但心裡一直癢癢的想買，覺得沒買到就不舒服。' },
+            { id: 2, name: '無貪心', category: '二乘', classic: '謂隨順無染法。', modern: '雖然看似不貪，但可能連該做的善事、該發的願都不感興趣，變得消極冷漠。', example: '對公司升遷沒興趣，對學習新技能也沒興趣，一種「躺平」但其實是懶惰的狀態。' },
+            { id: 3, name: '瞋心', category: '凡夫', classic: '謂隨順怒法。', modern: '當事情不如預期，心裡湧起抗拒、憤怒或不滿的情緒。', example: '開會時別人的意見跟你不同，你立刻覺得對方在針對你，心裡一把火燒起來。' },
+            { id: 4, name: '慈心', category: '菩薩', classic: '謂隨順修行慈法。', modern: '這是一種世俗的愛染，對特定人事物有強烈的偏愛，而非平等的慈悲。', example: '只對自己的家人朋友好，對陌生人卻很冷漠；或者過度溺愛孩子，反而害了他。' },
+            { id: 5, name: '癡心', category: '凡夫', classic: '謂隨順修不觀法。', modern: '缺乏判斷力，不經思考就盲目跟從，對是非善惡分辨不清。', example: '網路上看到聳動的假新聞，還沒查證就立刻轉發，深信不疑。' },
+            { id: 6, name: '智心', category: '菩薩', classic: '謂順修殊勝增上法。', modern: '這是一種世間的聰明才智，雖然能分辨優劣，但容易陷入比較和計較。', example: '在職場上精於計算利弊得失，知道怎麼做最有利，但可能因此變得勢利。' },
+            { id: 7, name: '決定心', category: '菩薩', classic: '謂遵教命如說奉行。', modern: '聽到什麼就信什麼，雖然執行力強，但可能缺乏自我審視的智慧。', example: '老闆說什麼就做什麼，完全不思考這個指令是否合理或有無道德風險。' },
+            { id: 8, name: '疑心', category: '凡夫', classic: '謂常收持不定等事。', modern: '對確定的真理或目標猶豫不決，心裡總是七上八下，無法前進。', example: '決定要開始每天運動，但又懷疑自己能不能堅持，想著想著就乾脆不開始了。' },
+            { id: 9, name: '闇心', category: '凡夫', classic: '謂於無疑慮法，生疑慮解。', modern: '對於明明是正確、無庸置疑的事情，卻莫名其妙產生懷疑，自尋煩惱。', example: '同事明明是好意幫忙，你卻懷疑他是不是別有用心，想搶你功勞。' },
+            { id: 10, name: '明心', category: '佛地', classic: '謂於不疑慮法，無疑慮修行。', modern: '雖然確信不疑，但如果不具備真正的智慧，可能變成一種盲目的自信。', example: '堅信某種偏方能治百病，完全聽不進醫生的專業建議。' },
+            { id: 11, name: '積聚心', category: '凡夫', classic: '謂無量為一為性。', modern: '把各種不同的觀念或事物強行湊在一起，認為這就是全部，缺乏變通。', example: '學了一點皮毛，就覺得自己懂了全世界，把所有問題都用同一個公式硬套。' },
+            { id: 12, name: '鬪心', category: '凡夫', classic: '謂互相是非為性。', modern: '喜歡爭辯，總想證明自己是對的、別人是錯的，挑人毛病。', example: '在網路上看到不同觀點的留言，非要留言反駁，爭個你死我活才罷休。' },
+            { id: 13, name: '諍心', category: '凡夫', classic: '謂於自己而生是非。', modern: '內心自我矛盾，自己跟自己過不去，做完決定又後悔，患得患失。', example: '買了股票後，漲了後悔沒多買，跌了後悔沒早賣，整天心神不寧。' },
+            { id: 14, name: '無諍心', category: '佛地', classic: '謂是非俱捨。', modern: '雖然不爭了，但也可能變成一種和稀泥、沒有原則的鄉愿態度。', example: '開會時大家吵成一團，你為了不想得罪人，誰都說好，結果問題沒解決。' },
+            { id: 15, name: '天心', category: '凡夫', classic: '謂心思隨念成就。', modern: '心想事成，隨心所欲，容易因此變得傲慢，忘記了努力的重要性。', example: '因為家境好或運氣好，想要什麼就有什麼，覺得一切理所當然，受不了一點挫折。' },
+            { id: 16, name: '阿修羅心', category: '凡夫', classic: '謂樂處生死。', modern: '好勝心強，喜歡與人比較、競爭，雖然有能力，但內心常不平靜。', example: '看到同事業績比自己好一點點，就一定要拚命加班超過他，把職場當戰場。' },
+            { id: 17, name: '龍心', category: '凡夫', classic: '謂思念廣大資財。', modern: '對財富或資源有巨大的貪求，想要累積更多更多，永不滿足。', example: '已經很有錢了，還是拚命投資房地產，想把資產翻倍再翻倍，心被數字綁架。' },
+            { id: 18, name: '人心', category: '菩薩', classic: '謂思念利他。', modern: '這是一種世俗的人情世故，想著怎麼做對別人好、對自己有利，講究回報。', example: '送禮給客戶，心裡盤算著對方之後會給自己多少訂單，這是有條件的「利他」。' },
+            { id: 19, name: '女心', category: '凡夫', classic: '謂隨順欲法。', modern: '情緒較為感性、依賴，容易被情感或慾望牽著走，追求當下的愉悅。', example: '心情不好就瘋狂購物或吃甜點，用物質享受來填補內心的空虛。' },
+            { id: 20, name: '自在心', category: '凡夫', classic: '謂思惟欲我一切如意。', modern: '希望全世界都繞著自己轉，控制欲強，覺得自己是主宰。', example: '在家裡要求所有人都聽你的安排，稍微不順你的意就大發雷霆。' },
+            { id: 21, name: '商人心', category: '凡夫', classic: '謂順修初收聚後分析法。', modern: '凡事精打細算，先評估利益再決定行動，不見兔子不撒鷹。', example: '朋友找你幫忙，你第一時間先想「幫這個忙對我有什麼好處？」，才決定要不要幫。' },
+            { id: 22, name: '農夫心', category: '二乘', classic: '謂隨順初廣聞而後求法。', modern: '做事按部就班，但也可能過於保守，準備了很久卻遲遲不敢行動。', example: '想學英文，買了一堆教材、報了名，做足了準備功課，但就是沒開口說過一句。' },
+            { id: 23, name: '河心', category: '凡夫', classic: '謂順修依因二邊法。', modern: '搖擺不定，容易被環境影響，一下倒向這邊，一下倒向那邊，沒有主見。', example: '聽到A說B壞話就信A，聽到B說A壞話又信B，像牆頭草一樣。' },
+            { id: 24, name: '陂池心', category: '凡夫', classic: '謂隨順渴無厭足法。', modern: '像乾渴的池塘，不斷吸收外在資訊或名利，卻永遠覺得不夠，內心焦慮。', example: '滑手機成癮，一直刷短影片，刷了幾個小時還是覺得空虛，停不下來。' },
+            { id: 25, name: '井心', category: '二乘', classic: '謂如是思惟深復甚深。', modern: '城府很深，心思隱藏不露，讓人看不透，過度自我保護。', example: '在公司遇到問題不說出來，自己默默憋著，別人問起也說沒事，讓人覺得難以親近。' },
+            { id: 26, name: '守護心', category: '二乘', classic: '謂唯此心實餘心不實。', modern: '固步自封，認為只有自己的觀點是對的，排斥其他可能性，保護自己的既得利益。', example: '堅持老派的工作方法，拒絕學習新系統，覺得新東西都是花俏不實用的。' },
+            { id: 27, name: '慳心', category: '凡夫', classic: '謂隨順為己不與他法。', modern: '吝嗇，不僅是金錢，連知識、讚美都不願意分享給別人。', example: '自己發現了好用的工作技巧，故意不教同事，怕別人比自己強。' },
+            { id: 28, name: '狸心', category: '凡夫', classic: '謂順修徐進法。', modern: '像貓或狸一樣，慢慢靠近目標，伺機而動，但也可能流於投機取巧。', example: '工作上不主動爭取，就在旁邊默默等，看準大老闆心情好的時候才去提加薪。' },
+            { id: 29, name: '狗心', category: '凡夫', classic: '謂得少分以為喜足。', modern: '容易滿足於小確幸，缺乏大志，得到一點點好處就沾沾自喜，不求上進。', example: '老闆發了一點小獎金，就覺得自己很棒了，接下來一個月都在混水摸魚。' },
+            { id: 30, name: '迦樓羅心', category: '凡夫', classic: '謂隨順朋黨羽翼法。', modern: '依賴群體，喜歡拉幫結派，要有「自己人」在身邊才有安全感。', example: '做什麼事都要拉著同事一起，不敢一個人承擔責任，喜歡搞小圈圈。' },
+            { id: 31, name: '鼠心', category: '凡夫', classic: '謂思惟斷諸繫縛。', modern: '像老鼠一樣喜歡咬斷東西，引申為喜歡破壞關係、或是挑撥離間。', example: '在背後傳話，破壞同事之間的感情，以此獲得一種隱微的快感或利益。' },
+            { id: 32, name: '歌詠心', category: '凡夫', classic: '謂修行如是法。', modern: '喜歡到處宣傳、說教，覺得自己懂很多，好為人師，但可能只是嘴上功夫。', example: '稍微懂一點佛法或養生知識，就見人就說教，不管對方想不想聽。' },
+            { id: 33, name: '舞心', category: '凡夫', classic: '謂修行如是法，我當上昇種種神變。', modern: '喜歡炫耀，表現自己與眾不同，希望引起別人的注意和讚嘆。', example: '在社群媒體上發修圖過度的美照或誇大的生活動態，渴望獲得很多讚。' },
+            { id: 34, name: '擊鼓心', category: '凡夫', classic: '謂修順是法，我當擊法鼓。', modern: '雖然有心想喚醒大眾，但可能流於形式，聲音大卻內容空洞，或者是為了出名。', example: '發起一個公益活動，但比起幫助人，更在意活動場面大不大、新聞有沒有報導。' },
+            { id: 35, name: '室宅心', category: '二乘', classic: '謂順修自護身法。', modern: '過度自我保護，像躲在房子裡，只掃門前雪，不管他人瓦上霜。', example: '只要不影響到自己的權益，看到不公義的事情也選擇沉默、裝作沒看到。' },
+            { id: 36, name: '師子心', category: '佛地', classic: '謂修行一切無怯弱法。', modern: '自信爆棚，無所畏懼，但也可能變成自大狂妄，聽不進別人的建議。', example: '專案出問題時，堅持自己的做法沒錯，強勢壓過所有反對的聲音。' },
+            { id: 37, name: '鵂鶹心', category: '凡夫', classic: '謂常暗夜思念。', modern: '像貓頭鷹一樣，白天昏沉，晚上精神好，思緒在黑暗中特別活躍，可能傾向陰暗面。', example: '白天上班無精打采，半夜卻在想東想西，甚至都在想些負面、悲觀的事情。' },
+            { id: 38, name: '烏心', category: '凡夫', classic: '謂一切處驚怖思念。', modern: '像烏鴉一樣疑神疑鬼，總覺得有壞事要發生，對環境充滿不信任。', example: '老闆只是皺了一下眉頭，就覺得自己是不是要被開除了，整天提心吊膽。' },
+            { id: 39, name: '羅剎心', category: '凡夫', classic: '謂於善中發起不善。', modern: '在做善事的過程中，夾雜了惡念，比如為了競爭功德而嫉妒別人。', example: '去當志工，結果因為別人被分配到比較輕鬆的工作，心裡就產生怨恨。' },
+            { id: 40, name: '刺心', category: '凡夫', classic: '謂一切處發起惡作為性。', modern: '像刺一樣，到處刺人，說話帶刺，或者自己內心常懷悔恨，坐立難安。', example: '說話尖酸刻薄，一句話就能把氣氛搞得很僵，或者做完事老是後悔「早知道就不這樣」。' },
+            { id: 41, name: '窟心', category: '二乘', classic: '謂順修為入窟法。', modern: '喜歡躲起來，逃避現實，沉迷於自己的小世界或神祕體驗。', example: '遇到工作壓力就想辭職躲回家，或者沉迷於身心靈課程而脫離現實生活。' },
+            { id: 42, name: '風心', category: '凡夫', classic: '謂遍一切處發起為性。', modern: '像風一樣定不下來，興趣廣泛但都不精，到處沾一點，心浮氣躁。', example: '一會兒想學日文，一會兒想學程式，一會兒又想去創業，結果什麼都沒做成。' },
+            { id: 43, name: '水心', category: '二乘', classic: '謂順修洗濯一切不善法。', modern: '雖然想清洗罪過，但可能過度執著於潔淨，反而變成一種潔癖或強迫症。', example: '做錯一點小事就過度自責，覺得自己很髒、很糟糕，一直陷在愧疚感裡。' },
+            { id: 44, name: '火心', category: '凡夫', classic: '謂熾盛炎熱性。', modern: '熱情如火，但也容易衝動、急躁，三分鐘熱度，來得快去得也快。', example: '突然對某個專案充滿熱情，沒日沒夜做三天，遇到一點困難熱情就熄滅了。' },
+            { id: 45, name: '泥心', category: '凡夫', classic: '謂一向無明。', modern: '糊裡糊塗，像爛泥一樣扶不上牆，對人生沒有目標，得過且過。', example: '每天上班打卡下班追劇，問他未來有什麼打算，他一臉茫然說「不知道」。' },
+            { id: 46, name: '顯色心', category: '凡夫', classic: '謂類彼為性。', modern: '像變色龍一樣，隨環境改變，近朱者赤，近墨者黑，沒有自己的定見。', example: '跟勤奮的人在一起就勤奮，跟偷懶的人在一起就偷懶，完全受朋友影響。' },
+            { id: 47, name: '板心', category: '二乘', classic: '謂順修隨量法，捨棄餘善故。', modern: '像木板一樣硬邦邦，不知變通，只守著舊規矩，排斥新的善法。', example: '認為只有傳統的拜拜才是修行，對於現代的公益活動或心理諮商嗤之以鼻。' },
+            { id: 48, name: '迷心', category: '凡夫', classic: '謂所執異所思異。', modern: '心口不一，想的和做的不一樣，方向搞錯了還不自知。', example: '嘴上說要減肥（想健康），手裡卻拿著炸雞（做傷害健康的事），完全背道而馳。' },
+            { id: 49, name: '毒藥心', category: '凡夫', classic: '謂順修無生分法。', modern: '心如死灰，充滿負面能量，不僅自己絕望，還會散播毒素影響別人。', example: '遇到挫折就覺得人生無望，還到處跟人說「努力沒有用啦」，散播負能量。' },
+            { id: 50, name: '羂索心', category: '凡夫', classic: '謂一切處住於我縛為性。', modern: '自我束縛，被「我執」緊緊綁住，覺得自己離不開某些人事物，作繭自縛。', example: '離不開一段有毒的關係，明知道不適合，卻覺得「沒有他我活不下去」。' },
+            { id: 51, name: '械心', category: '二乘', classic: '謂二足止住為性。', modern: '像腳被銬住一樣，動彈不得，可能陷入某種僵局或舒適圈，無法突破。', example: '在同一個職位待了十年，薪水沒漲也不敢換工作，覺得自己哪裡也去不了。' },
+            { id: 52, name: '雲心', category: '凡夫', classic: '謂常作降雨思念。', modern: '心情陰晴不定，憂鬱悶悶不樂，像烏雲罩頂，也容易讓周圍氣氛低氣壓。', example: '整天愁眉苦臉，擔心這個擔心那個，搞得家裡或辦公室氣氛很凝重。' },
+            { id: 53, name: '田心', category: '凡夫', classic: '謂常如是修事自身。', modern: '過度裝飾自己，像耕田一樣精心打理外表，但可能忽略了內心的修養。', example: '花大把時間金錢在醫美、名牌上，卻不願意花時間看一本書或陪伴家人。' },
+            { id: 54, name: '鹽心', category: '凡夫', classic: '謂所思念彼復增加思念。', modern: '像鹽巴一樣，越吃越鹹，越想越執著，把小事放大，無限迴圈。', example: '被同事講了一句重話，回家後越想越氣，把那句話在腦子裡重播了一百遍。' },
+            { id: 55, name: '剃刀心', category: '二乘', classic: '謂唯如是依止剃除法。', modern: '斷絕一切，不僅斷惡，連善緣也切斷了，變得孤僻冷漠，不近人情。', example: '為了專心工作（或修行），把所有朋友的聯絡方式都刪掉，誰都不理。' },
+            { id: 56, name: '須彌等心', category: '凡夫', classic: '謂常思惟心高舉為性。', modern: '貢高我慢，覺得自己像須彌山一樣高，誰都看不起，無法虛心受教。', example: '覺得周圍的人都比自己笨，聽不進任何人的建議，總是用鼻孔看人。' },
+            { id: 57, name: '海等心', category: '凡夫', classic: '謂常如是受用自身而住。', modern: '心量雖大，但可能變成容納垢穢，好的壞的都收，且以此自豪，自我膨脹。', example: '覺得自己人脈很廣，三教九流都認識，卻沒發現自己正在被壞朋友影響。' },
+            { id: 58, name: '穴等心', category: '凡夫', classic: '謂先決定彼後復變改為性。', modern: '像有破洞的容器，存不住東西，決心很大但堅持不久，虎頭蛇尾。', example: '發誓要戒菸，把菸都丟了，結果三天後忍不住又去買，意志力漏光光。' },
+            { id: 59, name: '受生心', category: '二乘', classic: '謂諸有修習行業彼生，心如是同性。', modern: '做什麼事都是為了未來的回報（下輩子或將來），而非專注於當下的清淨。', example: '現在努力工作存錢，只是為了退休後可以揮霍，而不是享受現在的工作價值。' },
+            { id: 60, name: '猿猴心', category: '凡夫', classic: '心性躁動不安。', modern: '像猴子一樣跳來跳去，一刻不得閒，思緒紛飛，無法專注。', example: '上班時一下看Line，一下回Email，一下滑臉書，忙了一整天卻什麼正事都沒做完。' },
+        ];
+
+        function OmikujiApp() {
+            const [appState, setAppState] = useState('book-closed');
+            const [result, setResult] = useState(null);
+
+            useEffect(() => {
+                const handleKeyDown = (event) => {
+                    if (event.key === 'Enter' || event.code === 'Space') {
+                        event.preventDefault();
+                        handleInteraction();
+                    }
+                };
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [appState]);
+
+            const handleInteraction = () => {
+                if (appState === 'book-closed') {
+                    setAppState('book-open');
+                } else if (appState === 'book-open') {
+                    setAppState('shaking');
+                    setTimeout(() => {
+                        // 2秒後自動跳轉，可根據需求開啟或關閉
+                        // drawOmikuji();
+                    }, 2000);
+                } else if (appState === 'shaking') {
+                    drawOmikuji();
+                } else if (appState === 'result') {
+                    // 若點擊的是結果頁面的背景，則不做動作，必須點擊按鈕
+                }
+            };
+
+            const drawOmikuji = () => {
+                const randomIndex = Math.floor(Math.random() * SIXTY_MINDS.length);
+                const selectedMind = SIXTY_MINDS[randomIndex];
+                setResult(selectedMind);
+                setAppState('result');
+            };
+
+            const resetOmikuji = (e) => {
+                if(e) e.stopPropagation();
+                setResult(null);
+                setAppState('book-closed');
+            };
+
+            const getCategoryColor = (category) => {
+                switch(category) {
+                    case '佛地': return 'bg-amber-100 text-amber-800 border-amber-400 ring-2 ring-amber-200';
+                    case '菩薩': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+                    case '二乘': return 'bg-blue-100 text-blue-800 border-blue-300';
+                    case '凡夫': return 'bg-stone-200 text-stone-600 border-stone-300';
+                    default: return 'bg-stone-100 text-stone-800';
+                }
+            };
+
+            return (
+                <div className="flex-1 flex flex-col items-center justify-center p-4 relative w-full h-full"
+                     onClick={(e) => {
+                         // 避免在 result 狀態下點擊背景就重置，容易誤觸
+                         if (appState !== 'result') {
+                            handleInteraction();
+                         }
+                     }} 
+                >
+                    {/* 背景紋路 */}
+                    <div className="absolute inset-0 opacity-20 pointer-events-none" 
+                         style={{backgroundImage: 'radial-gradient(#d4af37 1px, transparent 1px)', backgroundSize: '30px 30px'}}>
+                    </div>
+
+                    {/* 標題 (僅在非書本關閉時顯示) */}
+                    <header className={`absolute top-4 md:top-6 left-0 right-0 text-center z-10 pointer-events-none transition-opacity duration-500 ${appState === 'book-closed' ? 'opacity-0' : 'opacity-100'}`}>
+                        <div className="inline-block border-b-2 border-yellow-700/50 pb-2 mb-2">
+                            <h1 className="text-2xl md:text-4xl font-bold text-yellow-600 tracking-widest">真言宗住嚴院</h1>
+                        </div>
+                        <p className="text-sm md:text-lg text-yellow-700/80 font-medium">數位法結</p>
+                    </header>
+
+                    <main className="relative z-20 w-full flex flex-col items-center justify-center h-full perspective-1000">
+                        
+                        {/* 狀態 1: 經書封面 */}
+                        {appState === 'book-closed' && (
+                            <div className="book-container animate-fade-in cursor-pointer" onClick={(e) => { e.stopPropagation(); setAppState('book-open'); }}>
+                                <div className="w-[65vw] max-w-[260px] aspect-[2/3] bg-red-900 rounded-r-lg rounded-l-sm border-l-4 md:border-l-8 border-yellow-700 shadow-2xl relative flex items-center justify-center transform hover:scale-105 transition-transform duration-300">
+                                    <div className="absolute left-0 top-0 bottom-0 w-1 md:w-2 bg-yellow-900 opacity-50"></div>
+                                    <div className="absolute top-2 bottom-2 left-2 right-2 md:top-4 md:bottom-4 md:left-4 md:right-4 border border-yellow-600/30 rounded-r-md"></div>
+                                    <div className="w-12 md:w-16 h-48 md:h-64 bg-yellow-100 shadow-inner flex items-center justify-center border border-stone-300">
+                                        <h1 className="writing-vertical-rl text-xl md:text-2xl font-black text-stone-900 tracking-widest leading-loose">
+                                            大日經住心品
+                                        </h1>
+                                    </div>
+                                    <div className="absolute bottom-4 md:bottom-6 text-yellow-500/80 text-xs md:text-sm font-bold animate-pulse flex flex-col items-center">
+                                        <Icon name="Hand" size={20} className="mb-1" />
+                                        點擊翻閱
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 狀態 2: 解說頁 */}
+                        {appState === 'book-open' && (
+                            <div className="animate-fade-in w-full max-w-lg px-4" onClick={(e) => { e.stopPropagation(); setAppState('shaking'); }}>
+                                <div className="bg-stone-100 text-stone-900 rounded-lg shadow-2xl p-6 md:p-8 relative w-full max-h-[80vh] overflow-y-auto flex flex-col items-center">
+                                    <div className="absolute left-4 top-4 bottom-4 w-px bg-stone-300"></div>
+                                    <div className="absolute right-4 top-4 bottom-4 w-px bg-stone-300"></div>
+                                    <h2 className="text-xl md:text-2xl font-bold text-stone-800 mb-4 border-b-2 border-stone-300 pb-2">
+                                        六十心之觀照
+                                    </h2>
+                                    <div className="text-base md:text-lg leading-relaxed text-stone-700 font-medium mb-6 text-justify">
+                                        <p className="mb-4">《大日經・住心品》詳述行者修行過程中，內心可能顯現的六十種樣貌。</p>
+                                        <p>此占卜非斷吉凶，而在於<span className="text-red-700 font-bold">「如實知自心」</span>。</p>
+                                        <p>請誠心觀想，藉由法界緣起，照見當下心相。</p>
+                                    </div>
+                                    <div className="flex items-center space-x-2 text-yellow-800 bg-yellow-100 px-6 py-3 rounded-full border border-yellow-300 animate-pulse mt-auto">
+                                        <Icon name="Play" size={20} />
+                                        <span className="font-bold text-lg">開始觀想搖籤</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 狀態 3: 籤筒動畫 */}
+                        {appState === 'shaking' && (
+                            <div className="cursor-pointer" onClick={drawOmikuji}>
+                                <div className="relative w-48 md:w-80 h-72 md:h-96 rounded-xl overflow-hidden shadow-2xl border-2 border-stone-800 bg-stone-950 flex flex-col items-center justify-center animate-shake-hard">
+                                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-yellow-700 via-yellow-500 to-yellow-700"></div>
+                                    <div className="text-6xl md:text-8xl text-stone-800 opacity-50 font-bold select-none">心</div>
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                                        <div className="text-yellow-500 text-6xl animate-pulse">
+                                            <Icon name="Sparkles" size={60} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-6 md:mt-8 text-center bg-stone-800/80 backdrop-blur-sm p-4 rounded-xl border border-yellow-900/30 shadow-lg pointer-events-none">
+                                    <div className="flex items-center justify-center space-x-3 text-yellow-500 font-bold text-lg md:text-xl">
+                                        <span className="animate-bounce">觀想中...</span>
+                                        <span className="text-sm font-normal text-stone-400">(點擊出籤)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 狀態 4: 結果頁 */}
+                        {appState === 'result' && result && (
+                            <div className="w-full h-full flex items-center justify-center absolute z-30 px-2 md:px-0">
+                                {/* 籤支掉落動畫 */}
+                                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -z-10 opacity-0 animate-drop-stick pointer-events-none">
+                                    <div className="w-6 md:w-8 h-48 md:h-64 bg-stone-200 border-2 border-yellow-600 rounded-t-sm shadow-xl flex items-center justify-center relative">
+                                        <span className="writing-vertical-rl text-sm md:text-lg font-bold text-stone-900 pt-6 tracking-widest">{result.name}</span>
+                                        <div className="absolute bottom-0 w-full h-4 bg-red-800"></div>
+                                    </div>
+                                </div>
+
+                                {/* 結果卡片容器 - 確保在手機上可捲動 */}
+                                <div className="bg-stone-100 text-stone-900 rounded-2xl shadow-2xl border border-stone-300 w-full max-w-3xl relative flex flex-col max-h-[85vh] overflow-hidden">
+                                    
+                                    {/* 關閉按鈕 */}
+                                    <button onClick={resetOmikuji} className="absolute top-2 right-2 p-2 text-stone-400 hover:text-red-500 z-50 rounded-full bg-stone-100/80">
+                                        <Icon name="X" size={24} />
+                                    </button>
+
+                                    {/* 裝飾條 */}
+                                    <div className="h-2 bg-gradient-to-r from-yellow-600 via-yellow-400 to-yellow-600 shrink-0"></div>
+                                    
+                                    {/* 內容區域 - 可捲動 */}
+                                    <div className="flex-1 overflow-y-auto p-4 md:p-8">
+                                        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+                                            {/* 左側：心名 */}
+                                            <div className="w-full md:w-1/3 flex flex-row md:flex-col items-center justify-between md:justify-center border-b md:border-b-0 md:border-r border-stone-300 pb-4 md:pb-0 md:pr-6 shrink-0">
+                                                <div className="text-xs md:text-sm text-stone-500 font-bold tracking-widest uppercase">NO. {result.id}</div>
+                                                <div className="text-4xl md:text-6xl font-black text-stone-800 writing-vertical-rl md:writing-horizontal-tb py-2 md:py-4 px-4 md:px-5 rounded-lg border-4 border-stone-800 bg-stone-200 shadow-inner my-0 md:my-4">
+                                                    {result.name}
+                                                </div>
+                                                <div className={`px-3 py-1 rounded-full text-xs md:text-sm font-bold border ${getCategoryColor(result.category)}`}>
+                                                    {result.category}心
+                                                </div>
+                                            </div>
+
+                                            {/* 右側：解釋 */}
+                                            <div className="w-full md:w-2/3 space-y-3 md:space-y-4 text-left">
+                                                <div className="bg-stone-50 p-3 md:p-4 rounded-lg border-l-4 border-stone-400 shadow-sm">
+                                                    <div className="flex items-center text-stone-500 text-xs md:text-sm font-bold mb-1">
+                                                        <Icon name="Scroll" size={14} className="mr-2" />
+                                                        經典原文
+                                                    </div>
+                                                    <p className="text-base md:text-lg font-serif text-stone-800 italic leading-relaxed">「{result.classic}」</p>
+                                                </div>
+
+                                                <div className="py-1">
+                                                    <div className="flex items-center text-yellow-800 text-xs md:text-sm font-bold mb-1">
+                                                        <Icon name="BookOpen" size={14} className="mr-2" />
+                                                        職眾的白話翻譯
+                                                    </div>
+                                                    <p className="text-stone-700 leading-relaxed text-sm md:text-md font-medium">
+                                                        {result.modern}
+                                                    </p>
+                                                </div>
+
+                                                <div className="bg-yellow-50 p-3 md:p-4 rounded-lg border border-yellow-200/60 shadow-sm">
+                                                    <div className="flex items-center text-yellow-800 text-xs md:text-sm font-bold mb-1">
+                                                        <Icon name="Zap" size={14} className="mr-2" />
+                                                        現實生活實例
+                                                    </div>
+                                                    <p className="text-stone-700 text-xs md:text-sm">
+                                                        {result.example}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 底部按鈕 - 固定在卡片底部 */}
+                                    <div className="bg-stone-200 p-3 md:p-4 text-center border-t border-stone-300 shrink-0 cursor-pointer hover:bg-stone-300 transition-colors" onClick={resetOmikuji}>
+                                        <div className="inline-flex items-center text-stone-600 font-bold text-base md:text-lg animate-pulse">
+                                            <Icon name="RefreshCcw" size={20} className="mr-2" />
+                                            點擊此處或右上角關閉
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Footer */}
+                    <footer className="absolute bottom-2 md:bottom-4 text-stone-500 text-[10px] md:text-xs w-full text-center pointer-events-none">
+                        真言宗住嚴院 • 數位法結
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<OmikujiApp />);
+    </script>
+</body>
+</html>
